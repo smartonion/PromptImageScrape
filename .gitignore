@@ -144,6 +144,18 @@ ENV/
 env.bak/
 venv.bak/
 
+# Local crawl outputs
+data/
+results/
+tmp_integration/
+tmp_crawl/
+tmp_crawl_312/
+tmp_crawl_pw/
+tmp_test_run/
+
+# Extra venvs
+.venv312/
+
 # Spyder project settings
 .spyderproject
 .spyproject
