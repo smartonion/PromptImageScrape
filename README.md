@@ -9,5 +9,3 @@ CLI application that crawls any domain, scrapes all images, embeds them with **j
 - [ ] Indexing pipeline
 - [ ] Unified CLI
 - [ ] Documentation
-
-See [DOCS.md](DOCS.md) for full documentation.
