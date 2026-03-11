@@ -4,7 +4,7 @@ CLI application that crawls any domain, scrapes all images, embeds them with **j
 
 ## Status
 
-- [x] Crawl package (spiders, extractors, pipelines)
+- [x] Crawl package (spiders, extractors, pipelines, PDF support, sitemap parsing, JS detection)
 - [ ] Storage adapters
 - [ ] Indexing pipeline
 - [ ] Unified CLI

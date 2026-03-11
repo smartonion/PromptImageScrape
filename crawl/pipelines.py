@@ -35,6 +35,7 @@ class RawPagePipeline:
 class DocumentPipeline:
     def __init__(self, document_store: DocumentStore):
         self.document_store = document_store
+        self._seen_urls: set[str] = set()
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -43,6 +44,10 @@ class DocumentPipeline:
 
     def process_item(self, item, spider=None):
         if isinstance(item, DocumentItem):
+            key = item.normalized_url or item.url
+            if key in self._seen_urls:
+                return item
+            self._seen_urls.add(key)
             self.document_store.save(item)
         return item
 
@@ -51,6 +56,7 @@ class ImageAssetPipeline:
     def __init__(self, asset_store: AssetStore, manifest_store: DocumentStore):
         self.asset_store = asset_store
         self.manifest_store = manifest_store
+        self._seen_urls: set[str] = set()
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -64,6 +70,11 @@ class ImageAssetPipeline:
     def process_item(self, item, spider=None):
         if not isinstance(item, ImageAssetItem):
             return item
+
+        key = item.normalized_url or item.url
+        if key in self._seen_urls:
+            return item
+        self._seen_urls.add(key)
 
         record = asdict(item) if is_dataclass(item) else dict(item)
         self.asset_store.save_reference(asset_url=item.normalized_url or item.url, payload=record)

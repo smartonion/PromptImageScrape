@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import scrapy
-from crawl.items import ImageAssetItem
+from crawl.items import ImageAssetItem, RawPageItem
 from scrapy.linkextractors import LinkExtractor
 
 
@@ -225,19 +225,48 @@ class BaseSpider(scrapy.Spider):
             return getattr(item, "images") or []
         return []
 
+    def _get_image_records(self, item):
+        meta = None
+        if isinstance(item, dict):
+            meta = item.get("metadata", {})
+        elif is_dataclass(item) and hasattr(item, "metadata"):
+            meta = getattr(item, "metadata") or {}
+        elif hasattr(item, "metadata"):
+            meta = getattr(item, "metadata") or {}
+        if meta and isinstance(meta, dict):
+            return meta.get("image_records", [])
+        return []
+
     def build_image_asset_items(self, item, page_type, source_url, parent_url):
         image_urls = self._extract_image_urls_from_item(item)
+        image_records = self._get_image_records(item)
+
+        record_map: dict = {}
+        for rec in image_records:
+            if isinstance(rec, dict) and rec.get("url"):
+                record_map[rec["url"]] = rec
+
         seen = set()
         for image_url in image_urls:
             normalized = self.normalize_url(image_url)
             if normalized in seen:
                 continue
             seen.add(normalized)
+
+            rec = record_map.get(normalized, {})
+            metadata = {
+                "asset_type": "image",
+                "parent_url": parent_url,
+                "alt_text": rec.get("alt_text"),
+                "title": rec.get("title"),
+                "width": rec.get("width"),
+                "height": rec.get("height"),
+            }
             yield ImageAssetItem(
                 url=image_url,
                 normalized_url=normalized,
                 page_type=page_type,
-                metadata={"asset_type": "image", "parent_url": parent_url},
+                metadata=metadata,
                 source_url=source_url,
             )
 
@@ -297,12 +326,17 @@ class BaseSpider(scrapy.Spider):
         self.log_debug("skip_url", url=url, reason=reason)
 
     def parse_page(self, response, source_url=None, page_type_hint=None):
-        content_type = response.headers.get("Content-Type", b"").decode("latin-1", errors="replace").lower()
-        if "application/json" in content_type:
-            return
-
         page_type = self.classify_response(response, hinted=page_type_hint)
         self.log_page_type(response.url, page_type, hinted=page_type_hint)
+
+        yield RawPageItem(
+            url=response.url,
+            normalized_url=self.normalize_url(response.url),
+            page_type=page_type,
+            html=response.text if hasattr(response, "text") else None,
+            metadata={"source_url": source_url},
+            source_url=source_url,
+        )
 
         if self.should_extract(response, page_type):
             extracted = self.extract_item(response, page_type, source_url=source_url)
